@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "wrath"
+version = "0.1.0"
+description = ""
+authors = ["overclockworked64 <overclockworked64@users.noreply.github.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+trio = "^0.19.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+trio-typing = "^0.5.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
