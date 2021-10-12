@@ -1,11 +1,16 @@
-import functools
 import typing as t
 
 import click
-import click_option_group
+from click_option_group import optgroup
+from click_option_group import RequiredAnyOptionGroup
+
 import trio
 
 from wrath.core import main
+
+
+Port = int
+Range = t.Tuple[Port, Port]
 
 
 class PortRange(click.ParamType):
@@ -33,16 +38,17 @@ class PortRange(click.ParamType):
 
 
 @click.command()
-@click.argument("target")
+@click.argument("target", type=str)
 @click.option("--interface", "-i", type=str, required=True)
-@click_option_group.optgroup.group(
-    "Port(s) [ranges]", cls=click_option_group.RequiredAnyOptionGroup
-)
-@click_option_group.optgroup.option(
-    "--port", "-p",type=click.IntRange(min=0, max=65535), multiple=True
-)
-@click_option_group.optgroup.option(
-    "--range", "-r", "range_", type=PortRange(), multiple=True
-)
-def cli(**kwargs: t.Any) -> None:
-    trio.run(functools.partial(main, **kwargs))
+@click.option("--batch-size", "-b", type=int, required=True)
+@optgroup.group("Port(s) [ranges]", cls=RequiredAnyOptionGroup)
+@optgroup.option("--port", "-p", "ports", type=click.IntRange(min=0, max=65535), multiple=True)
+@optgroup.option("--range", "-r", "ranges", type=PortRange(), multiple=True)
+def cli(
+    target: str,
+    interface: str,
+    batch_size: int,
+    ports: t.List[Port],
+    ranges: t.List[Range]
+) -> None:
+    trio.run(main, target, interface, batch_size, ports, ranges)
