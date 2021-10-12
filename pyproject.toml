@@ -7,10 +7,22 @@ authors = ["overclockworked64 <overclockworked64@users.noreply.github.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 trio = "^0.19.0"
+click = "^8.0.3"
+click-option-group = "^0.5.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
+black = "^21.9b0"
+mypy = "^0.910"
 trio-typing = "^0.5.1"
+
+[[tool.mypy.overrides]]
+module = "click_option_group"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "wrath.cli"
+disallow_untyped_decorators = false
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

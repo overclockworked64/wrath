@@ -1,10 +1,4 @@
-import trio
+from wrath.cli import cli
 
-
-async def main() -> None:
-    ...
-
-
-if __name__ == '__main__':
-    trio.run(main)
-
+if __name__ == "__main__":
+    cli()
