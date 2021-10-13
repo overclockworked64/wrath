@@ -5,23 +5,38 @@ description = ""
 authors = ["overclockworked64 <overclockworked64@users.noreply.github.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 trio = "^0.19.0"
 click = "^8.0.3"
 click-option-group = "^0.5.3"
+tractor = "^0.1.0-alpha.2"
+more-itertools = "^8.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 black = "^21.9b0"
 mypy = "^0.910"
-trio-typing = "^0.5.1"
+trio-typing = {git = "https://github.com/overclockworked64/trio-typing", rev = "patch"}
+
+[tool.mypy]
+plugins = ["trio_typing.plugin"]
+strict = true
 
 [[tool.mypy.overrides]]
 module = "click_option_group"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "tractor"
+ignore_missing_imports = true
+
+
+[[tool.mypy.overrides]]
 module = "wrath.cli"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "wrath.core"
 disallow_untyped_decorators = false
 
 [build-system]
