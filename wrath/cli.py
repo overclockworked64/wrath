@@ -21,7 +21,7 @@ class PortRange(click.ParamType):
         value: t.Any,
         param: t.Optional[click.Parameter],
         ctx: t.Optional[click.Context],
-    ) -> t.Any:
+    ) -> t.Optional[Range]:
         try:
             start, end = map(int, value.split("-"))
         except ValueError:
@@ -40,7 +40,6 @@ class PortRange(click.ParamType):
 @click.command()
 @click.argument("target", type=str)
 @click.option("--interface", "-i", type=str, required=True)
-@click.option("--batch-size", "-b", type=int, required=True)
 @optgroup.group("Port(s) [ranges]", cls=RequiredAnyOptionGroup)
 @optgroup.option(
     "--port", "-p", "ports", type=click.IntRange(min=0, max=65535), multiple=True
@@ -49,8 +48,7 @@ class PortRange(click.ParamType):
 def cli(
     target: str,
     interface: str,
-    batch_size: int,
     ports: t.List[Port],
     ranges: t.List[Range],
 ) -> None:
-    trio.run(main, target, interface, batch_size, ports, ranges)
+    trio.run(main, target, interface, ports, ranges)
