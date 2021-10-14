@@ -17,6 +17,7 @@ pytest = "^5.2"
 black = "^21.9b0"
 mypy = "^0.910"
 trio-typing = {git = "https://github.com/overclockworked64/trio-typing", rev = "patch"}
+pylint = "^2.11.1"
 
 [tool.mypy]
 plugins = ["trio_typing.plugin"]
