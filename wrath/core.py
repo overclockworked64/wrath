@@ -44,10 +44,10 @@ async def receiver(
         with trio.move_on_after(0.01) as cancel_scope:
             response = await recv_sock.recv(1024 * 16)
         if cancel_scope.cancelled_caught:
-            for idx, worker in enumerate(busy_workers):
+            for worker in busy_workers[:]:
                 try:
                     if streams[worker].receive_nowait():
-                        del busy_workers[idx]
+                        busy_workers.remove(worker)
                 except trio.WouldBlock:
                     continue
             if not busy_workers:
@@ -55,6 +55,8 @@ async def receiver(
                 yield {k: v for k, v in status.items() if not v}
         else:
             src, flags = unpack(response)
+            if status[src]:
+                continue
             if flags == 18:
                 print(f"{src}: open")
                 status[src] = True

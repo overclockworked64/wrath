@@ -9,21 +9,20 @@ The scanning technique used is the so-called "stealth" (or "half-open") scanning
 In a lab environment with 4 cores and a direct Category 5e link to the target router, 64K ports were scanned in several seconds.
 
 ```sh
-❯ time sudo $pyexe -m wrath 192.168.1.1 -r 0-65535 -i enp5s0
+$ time sudo $pyexe -m wrath 192.168.1.1 -r 0-65535 -i enp5s0
 53: open
 80: open
+515: open
 18017: open
-3838: open
 5473: open
+3394: open
 9100: open
 47287: open
-515: open
 3838: open
-3394: open
 
-real	0m4,409s
-user	0m10,252s
-sys	0m1,332s
+real	0m3,985s
+user	0m9,942s
+sys	0m1,124s
 ```
 
 Yes, the pun in the name was intended.
