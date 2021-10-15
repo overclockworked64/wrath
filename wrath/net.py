@@ -42,9 +42,19 @@ TCP_URG_PTR = 0
 
 SIOCGIFADDR = 0x8915
 
+SYNACK = 18
+RSTACK = 20
+
+ETH_HDR_LEN = 20
+IP_HDR_LEN = 20
+TCP_HDR_LEN = 20
+
 
 @functools.cache
 def get_iface_ip(interface: str) -> str:
+    """
+    Returns the IP address of the interface.
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     ip_addr = socket.inet_ntoa(
         ioctl(
@@ -58,12 +68,18 @@ def get_iface_ip(interface: str) -> str:
 
 
 def create_send_sock() -> socket.SocketType:
+    """
+    Creates a raw AF_INET sending socket requiring an accompanying IP header.
+    """
     send_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
     send_sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
     return send_sock
 
 
 def create_recv_sock(target: str) -> socket.SocketType:
+    """
+    Creates a raw AF_PACKET receiving socket and attaches an eBPF filter to it.
+    """
     recv_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, 0x0800)
     fprog = create_filter(target)
     recv_sock.setsockopt(socket.SOL_SOCKET, 26, fprog)
@@ -81,6 +97,9 @@ def inet_checksum(header: bytes) -> int:
 
 @functools.cache
 def build_ipv4_datagram(interface: str, target: str) -> bytes:
+    """
+    Builds an IPv4 datagram destined to a particular address.
+    """
     ip_src = get_iface_ip(interface)
     src = socket.inet_aton(ip_src)
     dest = socket.inet_aton(target)
@@ -112,6 +131,9 @@ def build_ipv4_datagram(interface: str, target: str) -> bytes:
 
 
 def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
+    """
+    Builds a TCP segment destined to a particular port.
+    """
     ip_src = get_iface_ip(interface)
 
     seq_no = random.randint(0, 2 ** 32 - 1)
@@ -159,7 +181,14 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
 
 
 def unpack(data: bytes) -> t.Tuple[int, int]:
-    buf = ctypes.create_string_buffer(data[14:54], 40)
+    """
+    Extracts the IPv4 datagram from a raw Ethernet frame and returns
+    the source port and flags of the TCP segment contained in it.
+    """
+    buf = ctypes.create_string_buffer(
+        data[ETH_HDR_LEN : ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN],
+        IP_HDR_LEN + TCP_HDR_LEN
+    )
     unpacked = struct.unpack("!BBHHHBBH4s4sHHIIBBHHH", buf)  # type: ignore
     src, flags = unpacked[10], unpacked[15]
     return src, flags

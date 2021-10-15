@@ -5,8 +5,13 @@ from trio import socket
 buf = None  # pylint: disable=invalid-name
 
 
-def create_filter(target):
+def create_filter(target: str):
+    """
+    Creates an eBPF filter that only allows packets coming from the target.
+    """
     target = int.from_bytes(socket.inet_aton(target), "big")
+
+    # the filter is generated using `tcpdump(8)`
     bpf_filter = [
         [0x28, 0, 0, 0x0000000C],
         [0x15, 0, 12, 0x00000800],

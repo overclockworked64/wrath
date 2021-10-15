@@ -12,6 +12,7 @@ from wrath.net import build_tcp_segment
 from wrath.net import create_send_sock
 from wrath.net import create_recv_sock
 from wrath.net import unpack
+from wrath.net import SYNACK, RSTACK
 
 if t.TYPE_CHECKING:
     from wrath.cli import Port, Range
@@ -33,6 +34,7 @@ async def receiver(
     recv_sock = create_recv_sock(target)
     await recv_sock.bind((interface, 0x0800))
 
+    # trigger the machinery
     yield status
 
     while not recv_sock.is_readable():
@@ -56,11 +58,15 @@ async def receiver(
         else:
             src, flags = unpack(response)
             if status[src]:
+                # Upon receiving a SYN/ACK or RST/ACK, sometimes the kernel fails
+                # to send RST back for some reason which leads to retransmission
+                # of the packet. By choosing to discard the packet and continue,
+                # we prevent reporting duplicate packets.
                 continue
-            if flags == 18:
+            if flags == SYNACK:
                 print(f"{src}: open")
                 status[src] = True
-            elif flags == 20:
+            elif flags == RSTACK:
                 # print(f"{src}: closed")
                 status[src] = True
 
@@ -75,6 +81,7 @@ async def batchworker(ctx: tractor.Context, interface: str, target: str) -> None
             for port in batch:
                 tcp_segment = build_tcp_segment(interface, target, port)
                 await send_sock.sendto(ipv4_datagram + tcp_segment, (target, port))
+            # Let the receiver know that the worker is done sending.
             await stream.send(True)
     send_sock.close()
 
@@ -144,17 +151,17 @@ async def main(
     async with (
         open_actor_cluster() as portals,
         open_streams_from_portals(portals, all_done, interface, target) as streams,
+        aclosing(receiver(ranges, streams, interface, target)) as areceiver,
     ):
-        async with aclosing(receiver(ranges, streams, interface, target)) as areceiver:
-            async for update in areceiver:
-                ports = [*update]
-                if not ports:
-                    break
-                for (batch, stream) in zip(
-                    more_itertools.sliced(ports, len(ports) // workers),
-                    itertools.cycle(streams)
-                ):
-                    await stream.send(batch)
+        async for update in areceiver:
+            ports = [*update]
+            if not ports:
+                break
+            for (batch, stream) in zip(
+                more_itertools.sliced(ports, len(ports) // workers),
+                itertools.cycle(streams)
+            ):
+                await stream.send(batch)
 
         all_done.set()
     
