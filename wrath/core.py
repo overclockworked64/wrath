@@ -89,7 +89,7 @@ async def batchworker(ctx: tractor.Context, interface: str, target: str) -> None
 @contextlib.asynccontextmanager
 async def open_actor_cluster(workers: int = 4) -> t.AsyncGenerator[t.List[tractor.Portal], None]:
     portals = []
-    async with tractor.open_nursery() as tn:  # pylint: disable=not-async-context-manager
+    async with tractor.open_nursery(start_method='forkserver') as tn:  # pylint: disable=not-async-context-manager
         async with trio.open_nursery() as n:
             async def _start_actor(idx: int) -> None:
                 portals.append(
