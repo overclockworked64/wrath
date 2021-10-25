@@ -5,18 +5,18 @@ from trio import socket
 buf = None  # pylint: disable=invalid-name
 
 
-def create_filter(target: str):
+def create_filter(target: str) -> bytes:
     """
     Creates an eBPF filter that only allows packets coming from the target.
     """
-    target = int.from_bytes(socket.inet_aton(target), "big")
+    target_ip_addr = int.from_bytes(socket.inet_aton(target), "big")
 
     # the filter is generated using `tcpdump(8)`
     bpf_filter = [
         [0x28, 0, 0, 0x0000000C],
         [0x15, 0, 12, 0x00000800],
         [0x20, 0, 0, 0x0000001A],
-        [0x15, 0, 10, target],
+        [0x15, 0, 10, target_ip_addr],
         [0x30, 0, 0, 0x00000017],
         [0x15, 2, 0, 0x00000084],
         [0x15, 1, 0, 0x00000006],
@@ -30,8 +30,7 @@ def create_filter(target: str):
         [0x6, 0, 0, 0x00000000],
     ]
 
-    filters = [struct.pack("HBBI", *x) for x in bpf_filter]
-    filters = b"".join(x for x in filters)
+    filters = b"".join(x for x in [struct.pack("HBBI", *x) for x in bpf_filter])
 
     global buf  # pylint: disable=global-statement, invalid-name
     buf = ctypes.create_string_buffer(filters)

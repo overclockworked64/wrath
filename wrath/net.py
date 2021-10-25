@@ -2,7 +2,6 @@ import ctypes
 import functools
 import random
 import struct
-import typing as t
 from fcntl import ioctl
 
 from trio import socket
@@ -180,7 +179,7 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
     return bytes(buf)
 
 
-def unpack(data: bytes) -> t.Tuple[int, int]:
+def unpack(data: bytes) -> tuple[int, int]:
     """
     Extracts the IPv4 datagram from a raw Ethernet frame and returns
     the source port and flags of the TCP segment contained in it.

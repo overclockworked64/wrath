@@ -21,12 +21,12 @@ else:
 
 
 async def receiver(
-    ranges: t.List[Range],
-    streams: t.List[tractor.MsgStream],
+    ranges: list[Range],
+    streams: list[tractor.MsgStream],
     interface: str,
     target: str,
     workers: int = 4,
-) -> t.AsyncGenerator[t.Dict[int, bool], None]:
+) -> t.AsyncGenerator[dict[int, bool], None]:
     status = {
         port: False for r in ranges for port in range(*r)
     }
@@ -87,7 +87,7 @@ async def batchworker(ctx: tractor.Context, interface: str, target: str) -> None
 
 
 @contextlib.asynccontextmanager
-async def open_actor_cluster(workers: int = 4) -> t.AsyncGenerator[t.List[tractor.Portal], None]:
+async def open_actor_cluster(workers: int = 4) -> t.AsyncGenerator[list[tractor.Portal], None]:
     portals = []
     async with tractor.open_nursery(start_method='forkserver') as tn:  # pylint: disable=not-async-context-manager
         async with trio.open_nursery() as n:
@@ -109,12 +109,12 @@ async def open_actor_cluster(workers: int = 4) -> t.AsyncGenerator[t.List[tracto
 
 @contextlib.asynccontextmanager
 async def open_streams_from_portals(
-    portals: t.List[tractor.Portal],
+    portals: list[tractor.Portal],
     all_done: trio.Event,
     interface: str,
     target: str,
     workers: int = 4
-) -> t.AsyncGenerator[t.List[tractor.Portal], None]:
+) -> t.AsyncGenerator[list[tractor.Portal], None]:
     streams = []
     all_streams_opened = trio.Event()
     async with trio.open_nursery() as nursery:
@@ -143,8 +143,8 @@ async def open_streams_from_portals(
 async def main(
     target: str,
     interface: str,
-    ports: t.List[Port],
-    ranges: t.List[Range],
+    ports: list[Port],
+    ranges: list[Range],
     workers: int = 4,
 ) -> None:
     all_done = trio.Event()

@@ -48,7 +48,7 @@ class PortRange(click.ParamType):
 def cli(
     target: str,
     interface: str,
-    ports: t.List[Port],
-    ranges: t.List[Range],
+    ports: list[Port],
+    ranges: list[Range],
 ) -> None:
     trio.run(main, target, interface, ports, ranges)
