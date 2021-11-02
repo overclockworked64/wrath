@@ -5,6 +5,8 @@ import typing as t
 import more_itertools
 import trio
 import tractor
+from tractor import open_actor_cluster
+from tractor.trionics import gather_contexts
 from async_generator import aclosing
 
 from wrath.net import build_ipv4_datagram
@@ -86,60 +88,6 @@ async def batchworker(ctx: tractor.Context, interface: str, target: str) -> None
     send_sock.close()
 
 
-@contextlib.asynccontextmanager
-async def open_actor_cluster(workers: int = 4) -> t.AsyncGenerator[list[tractor.Portal], None]:
-    portals = []
-    async with tractor.open_nursery(start_method='forkserver') as tn:  # pylint: disable=not-async-context-manager
-        async with trio.open_nursery() as n:
-            async def _start_actor(idx: int) -> None:
-                portals.append(
-                    await tn.start_actor(
-                        f'batchworker {idx}',
-                        enable_modules=[__name__]
-                    )
-                )
-
-            for idx in range(workers):
-                n.start_soon(_start_actor, idx)
-
-        yield portals
-
-        await tn.cancel(hard_kill=True)
-
-
-@contextlib.asynccontextmanager
-async def open_streams_from_portals(
-    portals: list[tractor.Portal],
-    all_done: trio.Event,
-    interface: str,
-    target: str,
-    workers: int = 4
-) -> t.AsyncGenerator[list[tractor.Portal], None]:
-    streams = []
-    all_streams_opened = trio.Event()
-    async with trio.open_nursery() as nursery:
-        async def _open_stream(portal: tractor.Portal) -> None:
-            async with (
-                portal.open_context(
-                    batchworker,
-                    interface=interface,
-                    target=target
-                ) as (ctx, _),
-                ctx.open_stream() as stream,  # pylint: disable=used-before-assignment
-            ):
-                streams.append(stream)
-                if len(streams) == workers:
-                    all_streams_opened.set()
-                await all_done.wait()
-
-        for portal in portals:
-            nursery.start_soon(_open_stream, portal)
-
-        await all_streams_opened.wait()
-
-        yield streams
-
-
 async def main(
     target: str,
     interface: str,
@@ -149,8 +97,12 @@ async def main(
 ) -> None:
     all_done = trio.Event()
     async with (
-        open_actor_cluster() as portals,
-        open_streams_from_portals(portals, all_done, interface, target) as streams,
+        open_actor_cluster(modules=[__name__]) as portals,
+        gather_contexts([
+            p.open_context(batchworker, interface=interface, target=target)
+            for p in portals.values()
+        ]) as contexts,
+        gather_contexts([ctx[0].open_stream() for ctx in contexts]) as streams,
         aclosing(receiver(ranges, streams, interface, target)) as areceiver,
     ):
         async for update in areceiver:
