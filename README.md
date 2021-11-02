@@ -6,7 +6,7 @@ For tackling this problem, each range is sliced into optimally-sized batches. Th
 
 The scanning technique used is the so-called "stealth" (or "half-open") scanning, i.e., sending TCP packets with the SYN bit set and either waiting for SYN/ACK or RST/ACK. Upon receipt of a packet, the kernel sends back another packet with the RST bit set, effectively closing the connection in the middle of the handshake. For receiving responses, a raw AF_PACKET socket bound directly to the interface with a BPF filter applied is used.
 
-In a lab environment with 4 cores and a direct Category 5e link to the target router, 64K ports were scanned in several seconds.
+In a lab environment with 4 cores and a direct 15m Category 6e link to the target router, 64K ports were scanned in several seconds.
 
 ```sh
 $ time sudo $pyexe -m wrath 192.168.1.1 -r 0-65535 -i enp5s0
