@@ -95,7 +95,6 @@ async def main(
     ranges: list[Range],
     workers: int = 4,
 ) -> None:
-    all_done = trio.Event()
     async with (
         open_actor_cluster(modules=[__name__]) as portals,
         gather_contexts([
@@ -114,6 +113,3 @@ async def main(
                 itertools.cycle(streams)
             ):
                 await stream.send(batch)
-
-        all_done.set()
-    
