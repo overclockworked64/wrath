@@ -1,4 +1,5 @@
 import itertools
+import math
 import typing as t
 
 import more_itertools
@@ -23,17 +24,21 @@ else:
 
 async def receiver(
     ranges: list[Range],
-    streams: list[tractor.MsgStream],
+    streams: tuple[tractor.MsgStream],
     interface: str,
     target: str,
     workers: int = 4,
-) -> t.AsyncGenerator[dict[int, bool], None]:
-    status = {
-        port: False for r in ranges for port in range(*r)
-    }
-
+    max_retries: int = 5,
+) -> t.AsyncGenerator[
+    dict[int, dict[str, t.Union[int, bool]]], None
+]:
     recv_sock = create_recv_sock(target)
     await recv_sock.bind((interface, 0x0800))
+
+    status = {
+        port: {'sent': 0, 'recv': False}
+        for r in ranges for port in range(*r)
+    }
 
     # trigger the machinery
     yield status
@@ -49,16 +54,28 @@ async def receiver(
         if cancel_scope.cancelled_caught:
             for worker in busy_workers[:]:
                 try:
-                    if streams[worker].receive_nowait():
-                        busy_workers.remove(worker)
+                    sent_batch = streams[worker].receive_nowait()
+                    for port in sent_batch:
+                        if status[port]['sent'] < max_retries - 1:
+                            status[port]['sent'] += 1
+                        else:
+                            print(f'{port}: filtered')
+                            del status[port]
+                    busy_workers.remove(worker)
                 except trio.WouldBlock:
                     continue
-            if not busy_workers:
+            if len(busy_workers) < workers:
+                # If any of the workers are done sending,
+                # yield control to the parent so more ports
+                # can be dispatched.
                 busy_workers = list(range(workers))
-                yield {k: v for k, v in status.items() if not v}
+                yield {
+                    k: v for k, v in status.items()
+                    if not v['recv'] and v['sent'] < max_retries
+                }
         else:
             src, flags = unpack(response)
-            if status[src]:
+            if status[src]['recv']:
                 # Upon receiving a SYN/ACK or RST/ACK, sometimes the kernel fails
                 # to send RST back for some reason which leads to retransmission
                 # of the packet. By choosing to discard the packet and continue,
@@ -66,24 +83,33 @@ async def receiver(
                 continue
             if flags == SYNACK:
                 print(f"{src}: open")
-                status[src] = True
+                status[src]['recv'] = True
             elif flags == RSTACK:
-                # print(f"{src}: closed")
-                status[src] = True
+                print(f"{src}: closed")
+                status[src]['recv'] = True
 
 
 @tractor.context
-async def batchworker(ctx: tractor.Context, interface: str, target: str) -> None:
+async def batchworker(
+    ctx: tractor.Context,
+    interface: str,
+    target: str,
+    microbatch_size: int = 100,
+    nap_duration: float = 0.01
+) -> None:
     await ctx.started()
     ipv4_datagram = build_ipv4_datagram(interface, target)
     send_sock = create_send_sock()
     async with ctx.open_stream() as stream:
         async for batch in stream:
-            for port in batch:
-                tcp_segment = build_tcp_segment(interface, target, port)
-                await send_sock.sendto(ipv4_datagram + tcp_segment, (target, port))
+            # Slice the batch into microbatches for rate-limiting
+            for microbatch in more_itertools.sliced(batch, microbatch_size):
+                for port in microbatch:
+                    tcp_segment = build_tcp_segment(interface, target, port)
+                    await send_sock.sendto(ipv4_datagram + tcp_segment, (target, port))
+                await trio.sleep(nap_duration)
             # Let the receiver know that the worker is done sending.
-            await stream.send(True)
+            await stream.send(batch)
     send_sock.close()
 
 
@@ -108,7 +134,7 @@ async def main(
             if not ports:
                 break
             for (batch, stream) in zip(
-                more_itertools.sliced(ports, len(ports) // workers),
+                more_itertools.sliced(ports, math.ceil(len(ports) / workers)),
                 itertools.cycle(streams)
             ):
                 await stream.send(batch)
