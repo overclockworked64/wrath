@@ -149,34 +149,54 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
         port,
         seq_no,
         TCP_ACK_NO,
-        (TCP_DATA_OFFSET << 12)
-        | (TCP_RESERVED << 9)
-        | (TCP_NS << 8)
-        | (TCP_CWR << 7)
-        | (TCP_ECE << 6)
-        | (TCP_URG << 5)
-        | (TCP_ACK << 4)
-        | (TCP_PSH << 3)
-        | (TCP_RST << 2)
-        | (TCP_SYN << 1)
-        | TCP_FIN,
+        tcp_assemble_halfword(),
         TCP_WINDOW,
         TCP_CHECKSUM,
         TCP_URG_PTR,
     )
 
-    tcp_pseudo_header = struct.pack(
-        "!4s4sHHH",
-        socket.inet_aton(ip_src),
-        socket.inet_aton(target),
-        IP_PROTOCOL,
-        len(buf),
-        TCP_CHECKSUM,
-    )
+    tcp_pseudo_header = build_tcp_pseudo_hdr(ip_src, target, len(buf)) 
 
     struct.pack_into("!H", buf, 16, inet_checksum(tcp_pseudo_header + bytes(buf)))  # type: ignore
 
     return bytes(buf)
+
+
+def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
+    return struct.pack(
+        "!4s4sHHH",
+        socket.inet_aton(ip_src),
+        socket.inet_aton(ip_dest),
+        IP_PROTOCOL,
+        length,
+        TCP_CHECKSUM,
+    )
+
+
+@functools.cache
+def tcp_assemble_halfword() -> int:
+    """
+    This is the dumbest function name I could think of right now.
+    """
+    return (TCP_DATA_OFFSET << 12) \
+           | (TCP_RESERVED << 9) \
+           | (TCP_NS << 8) \
+           | build_tcp_flags()
+
+
+@functools.cache
+def build_tcp_flags() -> int:
+    """
+    Assembles TCP flags.
+    """
+    flags = 0
+    for flag in (
+        TCP_CWR, TCP_ECE, TCP_URG, TCP_ACK,
+        TCP_PSH, TCP_RST, TCP_SYN, TCP_FIN
+    ):
+        flags <<= 1
+        flags |= flag
+    return flags
 
 
 def unpack(data: bytes) -> tuple[int, int]:

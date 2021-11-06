@@ -85,7 +85,7 @@ async def receiver(
                 print(f"{src}: open")
                 status[src]['recv'] = True
             elif flags == RSTACK:
-                print(f"{src}: closed")
+                # print(f"{src}: closed")
                 status[src]['recv'] = True
 
 
