@@ -25,16 +25,16 @@ class PortRange(click.ParamType):
         try:
             start, end = map(int, value.split("-"))
         except ValueError:
-            self.fail("You need to pass a port range (e.g. 0-1024)", param, ctx)
+            self.fail("You need to pass a port range (e.g. 1-1024)", param, ctx)
         else:
-            if not 0 <= start <= 65534:
-                self.fail("Start must be in range [0, 65534]")
-            if not 1 <= end <= 65535:
-                self.fail("End must be in range [1, 65535]")
+            if not 1 <= start <= 65534:
+                self.fail("Start must be in range [1, 65534]")
+            if not 2 <= end <= 65535:
+                self.fail("End must be in range [2, 65535]")
             if not start < end:
-                self.fail("End must be in greater than start [1, 65535]")
+                self.fail("End must be greater than start.")
 
-            return (start, end)
+            return (start, end + 1)  # inclusive
 
 
 @click.command()
@@ -42,7 +42,7 @@ class PortRange(click.ParamType):
 @click.option("--interface", "-i", type=str, required=True)
 @optgroup.group("Port(s) [ranges]", cls=RequiredAnyOptionGroup)
 @optgroup.option(
-    "--port", "-p", "ports", type=click.IntRange(min=0, max=65535), multiple=True
+    "--port", "-p", "ports", type=click.IntRange(min=1, max=65535), multiple=True
 )
 @optgroup.option("--range", "-r", "ranges", type=PortRange(), multiple=True)
 def cli(
