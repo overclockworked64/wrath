@@ -161,7 +161,7 @@ def build_tcp_segment(interface: str, target: str, port: int) -> bytes:
 
     return bytes(buf)
 
-
+@functools.cache
 def build_tcp_pseudo_hdr(ip_src: str, ip_dest: str, length: int) -> bytes:
     return struct.pack(
         "!4s4sHHH",
