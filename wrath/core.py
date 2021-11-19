@@ -1,6 +1,7 @@
 import itertools
 import math
 import typing as t
+from multiprocessing import cpu_count
 
 import more_itertools
 import trio
@@ -28,7 +29,7 @@ async def receiver(
     interface: str,
     target: str,
     max_retries: int,
-    workers: int = 4,
+    workers: int = cpu_count(),
 ) -> t.AsyncGenerator[
     dict[int, dict[str, t.Union[int, bool]]], None
 ]:
@@ -125,7 +126,7 @@ async def main(
     batch_size: int,
     nap_duration: int,
     max_retries: int,
-    workers: int = 4,
+    workers: int = cpu_count(),
 ) -> None:
     async with (
         open_actor_cluster(modules=[__name__]) as portals,
