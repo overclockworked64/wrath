@@ -56,11 +56,15 @@ async def receiver(
                 try:
                     sent_batch = streams[worker].receive_nowait()
                     for port in sent_batch:
-                        if status[port]['sent'] < max_retries - 1:
-                            status[port]['sent'] += 1
-                        else:
-                            print(f'{port}: filtered')
-                            del status[port]
+                        try:
+                            if status[port]['sent'] < max_retries - 1:
+                                status[port]['sent'] += 1
+                            else:
+                                print(f'{port}: filtered')
+                                del status[port]
+                        except KeyError:
+                            # the port has already been inspected
+                            continue
                     busy_workers.remove(worker)
                 except trio.WouldBlock:
                     continue
