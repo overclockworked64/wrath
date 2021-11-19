@@ -27,8 +27,8 @@ async def receiver(
     streams: tuple[tractor.MsgStream],
     interface: str,
     target: str,
+    max_retries: int,
     workers: int = 4,
-    max_retries: int = 5,
 ) -> t.AsyncGenerator[
     dict[int, dict[str, t.Union[int, bool]]], None
 ]:
@@ -94,8 +94,8 @@ async def batchworker(
     ctx: tractor.Context,
     interface: str,
     target: str,
-    microbatch_size: int = 100,
-    nap_duration: float = 0.01
+    batch_size: int,
+    nap_duration: int,
 ) -> None:
     await ctx.started()
     ipv4_datagram = build_ipv4_datagram(interface, target)
@@ -103,11 +103,11 @@ async def batchworker(
     async with ctx.open_stream() as stream:
         async for batch in stream:
             # Slice the batch into microbatches for rate-limiting
-            for microbatch in more_itertools.sliced(batch, microbatch_size):
+            for microbatch in more_itertools.sliced(batch, batch_size):
                 for port in microbatch:
                     tcp_segment = build_tcp_segment(interface, target, port)
                     await send_sock.sendto(ipv4_datagram + tcp_segment, (target, port))
-                await trio.sleep(nap_duration)
+                await trio.sleep(1 / nap_duration)
             # Let the receiver know that the worker is done sending.
             await stream.send(batch)
     send_sock.close()
@@ -118,16 +118,25 @@ async def main(
     interface: str,
     ports: list[Port],
     ranges: list[Range],
+    batch_size: int,
+    nap_duration: int,
+    max_retries: int,
     workers: int = 4,
 ) -> None:
     async with (
         open_actor_cluster(modules=[__name__]) as portals,
         gather_contexts([
-            p.open_context(batchworker, interface=interface, target=target)
+            p.open_context(
+                batchworker,
+                interface=interface,
+                target=target,
+                batch_size=batch_size,
+                nap_duration=nap_duration,
+            )
             for p in portals.values()
         ]) as contexts,
         gather_contexts([ctx[0].open_stream() for ctx in contexts]) as streams,
-        aclosing(receiver(ranges, streams, interface, target)) as areceiver,
+        aclosing(receiver(ranges, streams, interface, target, max_retries)) as areceiver,
     ):
         async for update in areceiver:
             ports = [*update]
