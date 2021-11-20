@@ -39,15 +39,19 @@ class PortRange(click.ParamType):
 
 @click.command()
 @click.argument("target", type=str)
-@click.option("--interface", "-i", type=str, required=True)
-@click.option("--batch-size", "-b", type=int, default=100)
-@click.option("--nap-duration", "-n", type=int, default=100)  # milliseconds
-@click.option("--max-retries", "-R", type=int, default=5)
-@optgroup.group("Port(s) [ranges]", cls=RequiredAnyOptionGroup)
+@click.option("--interface", "-i", type=str, required=True, help='Interface for binding the socket')
+@click.option("--batch-size", "-b", type=int, default=100, help='Size of the micro batch sent before napping')
+@click.option("--nap-duration", "-n", type=int, default=100, help='Nap duration time (in milliseconds)')
+@click.option("--max-retries", "-R", type=int, default=5, help='Max number of retries before giving up on inspecting a port')
+@optgroup.group("Port(s)/Port range(s)", cls=RequiredAnyOptionGroup)
 @optgroup.option(
-    "--port", "-p", "ports", type=click.IntRange(min=1, max=65535), multiple=True
+    "--port", "-p", "ports", type=click.IntRange(min=1, max=65535), multiple=True,
+    help='Scan an individual port (e.g. -p 22)'
 )
-@optgroup.option("--range", "-r", "ranges", type=PortRange(), multiple=True)
+@optgroup.option(
+    "--range", "-r", "ranges", type=PortRange(), multiple=True,
+    help='Scan a port range (e.g. -r 1024-2048)'
+)
 def cli(
     target: str,
     interface: str,
