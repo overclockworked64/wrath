@@ -10,7 +10,7 @@ The scanning technique used is the so-called "stealth" (or "half-open") scanning
 
 ## Results
 
-In a lab environment with four cores and a direct 15m Category 6e link to the target router, `wrath` managed to inspect 64K ports in several seconds.
+In a lab environment with four cores and a direct 15m Category 6e link to the target router, `wrath` managed to inspect 64K ports in under 4 seconds.
 
 ```sh
 $ time sudo $pyexe -m wrath 192.168.1.1 -r 0-65535 -i enp5s0
