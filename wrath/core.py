@@ -15,7 +15,7 @@ from wrath.net import build_tcp_segment
 from wrath.net import create_send_sock
 from wrath.net import create_recv_sock
 from wrath.net import unpack
-from wrath.net import SYNACK, RSTACK
+from wrath.net import Flags
 
 if t.TYPE_CHECKING:
     from wrath.cli import Port, Range
@@ -58,7 +58,7 @@ async def receiver(
                     sent_batch = streams[worker].receive_nowait()
                     for port in sent_batch:
                         try:
-                            if status[port]['sent'] < max_retries - 1:
+                            if status[port]['sent'] < max_retries:
                                 status[port]['sent'] += 1
                             else:
                                 print(f'{port}: filtered')
@@ -69,10 +69,9 @@ async def receiver(
                     busy_workers.remove(worker)
                 except trio.WouldBlock:
                     continue
-            if len(busy_workers) < workers:
-                # If any of the workers are done sending,
-                # yield control to the parent so more ports
-                # can be dispatched.
+            # If all of the workers are done sending, yield control
+            # to the parent so that more ports can be dispatched.
+            if not busy_workers:
                 busy_workers = list(range(workers))
                 yield {
                     k: v for k, v in status.items()
@@ -86,13 +85,16 @@ async def receiver(
                 # of the packet. By choosing to discard the packet and continue,
                 # we prevent reporting duplicate packets.
                 continue
-            if flags == SYNACK:
-                print(f"{src}: open")
-                status[src]['recv'] = True
-            elif flags == RSTACK:
-                # print(f"{src}: closed")
-                status[src]['recv'] = True
 
+            match flags:
+                case Flags.SYNACK:
+                    print(f"{src}: open")
+                    status[src]['recv'] = True
+                case Flags.RSTACK:
+                    print(f"{src}: closed")
+                    status[src]['recv'] = True
+                case _: 
+                    pass
 
 @tractor.context
 async def batchworker(

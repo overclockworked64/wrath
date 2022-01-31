@@ -41,13 +41,13 @@ TCP_URG_PTR = 0
 
 SIOCGIFADDR = 0x8915
 
-SYNACK = 18
-RSTACK = 20
-
 ETH_HDR_LEN = 14
 IP_HDR_LEN = 20
 TCP_HDR_LEN = 20
 
+class Flags:
+    SYNACK = 18
+    RSTACK = 20
 
 @functools.cache
 def get_iface_ip(interface: str) -> str:
